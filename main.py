@@ -1,8 +1,9 @@
 import discord
 import asyncio
 import time
+from datetime  import datetime, timedelta
+from discord.ext import commands, tasks
 import yaml
-from discord.ext import commands
 import re
 import boto3
 import CloudFlare
@@ -23,7 +24,39 @@ boto_session = boto3.session.Session(
 )
 
 ec2 = boto_session.resource("ec2")
-   
+
+class RealmReaperCog(commands.Cog):
+    def __init__(self, bot):
+        self.index = 0
+        self.bot = bot
+        self.reaper.start()
+    
+    def cog_unload(self):
+        self.reaper.cancel()
+
+    @tasks.loop(minutes=5.0)
+    async def reaper(self):
+        print("Starting reaper execution...")
+        for realm,realm_config in config["realms"].items():
+            realm_instance = ec2.Instance(realm_config["instance_id"])
+            if realm_instance.state["Name"] == "running":
+                heimdall_tags = {tag["Key"]: tag["Value"] for tag in realm_instance.tags if tag["Key"].startswith("heimdall.")}
+                
+                stop_after_str = heimdall_tags["heimdall.stopafter"]
+
+                stop_after = datetime.fromtimestamp(float(stop_after_str))
+                now = datetime.now()
+                if stop_after < now:
+                    print("Realm is beyond its time, expiring it ")
+                    realm_instance.create_tags(Tags=[
+                        {
+                            "Key": "heimdall.stoppedat",
+                            "Value": f"{datetime.timestamp(now)}"
+                        }
+                    ])
+
+                    realm_instance.stop()
+
     
 bot = commands.Bot(
     command_prefix=["heimdall ","heim ","!h "],
@@ -106,11 +139,22 @@ async def start(ctx, realm_name="foundry"):
                 await ctx.send(f"There was some difficulty connecting to the {realm_name} realm. Please contact the keeper of that realm. (Administrator)")
                 break
         
-        print("Done with the loop.... ")
         if status == "running":
             public_ip_address = realm_instance.public_ip_address
             await ctx.send(f"The {realm_name} realm is online. You may proceed with care to the realm. Stay safe. I'll be watching for your return.")
             await ctx.send(f"https://{public_ip_address}")
+
+            now = datetime.now()
+            stop_after = now + timedelta(hours=4)
+
+            tag = realm_instance.create_tags(
+                Tags=[
+                    {
+                        "Key": "heimdall.stopafter",
+                        "Value": f"{datetime.timestamp(stop_after)}"
+                    }
+                ]
+            )
     else:
         await ctx.send(f"The gateway to {realm_name} is in a strange state. ({status}). Please try again in a moment or contact the realm's keeper.")
         
@@ -152,5 +196,7 @@ async def stop(ctx, realm_name="foundry"):
     else:
         await ctx.send(f"The gateway to {realm_name} is in a strange state. ({status}). Please try again in a moment or contact the realm's keeper.")
 
+reaper_cog = RealmReaperCog(bot)
+bot.add_cog(reaper_cog)
 
 bot.run(config.get("discord").get("client_auth_token"))
