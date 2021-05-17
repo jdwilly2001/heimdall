@@ -1,0 +1,16 @@
+discord:
+  client_auth_token: asdfasdfasdfasdf
+
+aws:
+  access_key_id: ABCDEFG
+  secret_access_key: ABDCESFS
+  region: us-east-1
+
+realms:
+  myrealm1:
+    instance_id: i-123455786
+    dns_record: myrealm1
+
+cloudflare:
+  cloudflare_access_token: beepboopbeep
+  dns_zone_name: somezone.com
