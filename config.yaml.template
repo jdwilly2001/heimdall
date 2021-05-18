@@ -13,4 +13,5 @@ realms:
 
 cloudflare:
   cloudflare_access_token: beepboopbeep
-  dns_zone_name: somezone.com
+  dns_zone_id: some_zone_id
+  endpoint_name: beep.boop.robot
