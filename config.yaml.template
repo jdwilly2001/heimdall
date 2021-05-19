@@ -10,8 +10,12 @@ realms:
   myrealm1:
     instance_id: i-123455786
     dns_record: myrealm1
+    guild_id: 
 
 cloudflare:
   cloudflare_access_token: beepboopbeep
-  dns_zone_id: some_zone_id
-  endpoint_name: beep.boop.robot
+  dns_zone_name: somezone.com
+
+store:
+  type: FileHeimdallStore
+  data_dir: ./data
